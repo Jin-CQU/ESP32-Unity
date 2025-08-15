@@ -5,12 +5,13 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Linq;
+using UnityEngine.UI;
 using UnityEngine;
 
 public class UDP_1 : MonoBehaviour
 {
     [Header("UDP配置")]
-    [SerializeField] private string listenIP = "192.168.1.100";
+    [SerializeField] private string listenIP = "192.168.1.109";
     [SerializeField] private int listenPort = 30300;
     
     [Header("设备配置")]
@@ -19,7 +20,10 @@ public class UDP_1 : MonoBehaviour
     
     [Header("调试信息")]
     [SerializeField] private bool showDebugInfo = true;
-    
+
+    [Header("运行时显示")]
+    public Text ipText; // 拖拽UI Text到此字段
+
     // 工作模式枚举
     public enum WORK_MODE
     {
@@ -53,8 +57,8 @@ public class UDP_1 : MonoBehaviour
     private List<double[]> slideSqrtBuf = new List<double[]>();
     private int[] curIdx = new int[4];
     private double[] winBuf = new double[50];
-    private int winPos = 0;
-    private double winSum = 0;
+    // private int winPos = 0;
+    // private double winSum = 0;
     
     // 数据回调事件
     public event Action<int, double[], double> OnDataReceived; // 通道号, 数据数组, 时间戳
@@ -62,6 +66,11 @@ public class UDP_1 : MonoBehaviour
     
     void Start()
     {
+        listenIP = GetLocalIPAddress(); // 自动获取本机IP
+        if (ipText != null)
+        {
+            ipText.text = "本机IP: " + listenIP;
+        }
         InitializeCRC();
         InitializeFrameFormat();
         InitializeRMSBuffers();
@@ -75,6 +84,11 @@ public class UDP_1 : MonoBehaviour
     
     void Update()
     {
+        // 更新IP显示
+        if (ipText != null)
+        {
+            ipText.text = "本机IP: " + listenIP;
+        }
         // 在Update中显示调试信息
         if (showDebugInfo && Time.frameCount % 60 == 0) // 每秒显示一次
         {
@@ -83,7 +97,30 @@ public class UDP_1 : MonoBehaviour
                      $"CRC错误: {crcErrorCount}, 序列号错误: {serialErrorCount}");
         }
     }
-    
+
+    // 获取本机IP地址
+    private string GetLocalIPAddress()
+    {
+        string localIP = "";
+        try
+        {
+            var host = Dns.GetHostEntry(Dns.GetHostName());
+            foreach (var ip in host.AddressList)
+            {
+                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    localIP = ip.ToString();
+                    break;
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("获取本机IP失败: " + e.Message);
+        }
+        return localIP;
+    }
+
     // 初始化CRC校验表
     private void InitializeCRC()
     {

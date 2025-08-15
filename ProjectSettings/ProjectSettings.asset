@@ -12,8 +12,8 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: DefaultCompany
-  productName: SSVEP_1
+  companyName: SCUT_Liz
+  productName: ESP32_Unity
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
@@ -140,8 +140,11 @@ PlayerSettings:
   loadStoreDebugModeEnabled: 0
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
-  bundleVersion: 0.1
-  preloadedAssets: []
+  bundleVersion: 0.0.0
+  preloadedAssets:
+  - {fileID: 11400000, guid: 4a4f45ddea1e2494bb76643de226427f, type: 2}
+  - {fileID: -754145940428325901, guid: 847eb8c0f7bb22046a05158f4aba0e0b, type: 2}
+  - {fileID: 11400000, guid: 78145680e26acad48b1b7269581c9078, type: 2}
   metroInputSource: 0
   wsaTransparentSwapchain: 0
   m_HolographicPauseOnTrackingLoss: 1
@@ -162,8 +165,8 @@ PlayerSettings:
   androidSupportedAspectRatio: 1
   androidMaxAspectRatio: 2.1
   applicationIdentifier:
-    Android: com.DefaultCompany.SSVEP_1
-    Standalone: com.DefaultCompany.SSVEP-1
+    Android: com.SCUT_Liz.ESP32_Unity
+    Standalone: com.SCUT-Liz.ESP32-Unity
   buildNumber:
     Standalone: 0
     VisionOS: 0
@@ -852,7 +855,7 @@ PlayerSettings:
   hmiLogStartupTiming: 0
   qnxGraphicConfPath: 
   apiCompatibilityLevel: 6
-  activeInputHandler: 0
+  activeInputHandler: 2
   windowsGamepadBackendHint: 0
   cloudProjectId: 27201678-19d3-4237-ae0c-8b431615bacf
   framebufferDepthMemorylessMode: 0
