@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(D:\\Unity_Project/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

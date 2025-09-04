@@ -71,10 +71,10 @@ public class UDP_1 : MonoBehaviour
         {
             ipText.text = "本机IP: " + listenIP;
         }
-        InitializeCRC();
-        InitializeFrameFormat();
-        InitializeRMSBuffers();
-        StartUDPReceiver();
+        InitializeCRC(); // 初始化CRC校验
+        InitializeFrameFormat(); // 初始化数据帧格式
+        InitializeRMSBuffers(); // 初始化RMS缓冲区
+        StartUDPReceiver();  // 启动UDP接收
     }
     
     void OnDestroy()

@@ -11,7 +11,7 @@ public class EEGVisualizer : MonoBehaviour
     [SerializeField] private float yScale = 1.0f;
     [SerializeField] private Color lineColor = Color.green;
     [SerializeField] private bool useWorldSpace = false;
-    [SerializeField] private float lineWidth = 1.0f; // 线条宽度，可在Inspector中调整
+    [SerializeField] private float lineWidth = 0.01f; // 线条宽度，可在Inspector中调整
     
     [Header("组件引用")]
     [SerializeField] private LineRenderer lineRenderer;

@@ -872,7 +872,7 @@ MonoBehaviour:
   yScale: 0.5
   lineColor: {r: 0.025151253, g: 0, b: 1, a: 1}
   useWorldSpace: 0
-  lineWidth: 0.25
+  lineWidth: 0.01
   lineRenderer: {fileID: 100598212}
   rmsAmpLabel: {fileID: 388089186}
 --- !u!120 &100598212
@@ -1373,7 +1373,7 @@ MonoBehaviour:
   yScale: 0.5
   lineColor: {r: 1, g: 0, b: 0.6466551, a: 1}
   useWorldSpace: 0
-  lineWidth: 0.25
+  lineWidth: 0.01
   lineRenderer: {fileID: 211983767}
   rmsAmpLabel: {fileID: 1819510559}
 --- !u!120 &211983767
@@ -1515,7 +1515,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: -600, y: 194}
-  m_SizeDelta: {x: 500, y: 100}
+  m_SizeDelta: {x: 600, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &232602570
 MonoBehaviour:
@@ -1648,6 +1648,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 279159840}
+  - component: {fileID: 279159841}
   m_Layer: 0
   m_Name: --Algorithm
   m_TagString: Untagged
@@ -1670,6 +1671,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &279159841
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 279159839}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c5856061092922447ab4abf27c8680ab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  inputTexture: {fileID: 2800000, guid: acb60ab92da68d242bd0a6ec4859e10e, type: 3}
+  modelAsset: {fileID: 5022602860645237092, guid: ebc86db147a954647970919944ced19e, type: 3}
+  results:
+  - 0
 --- !u!1001 &283987800
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -1956,7 +1973,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: -600, y: -118}
-  m_SizeDelta: {x: 500, y: 100}
+  m_SizeDelta: {x: 600, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &388089186
 MonoBehaviour:
@@ -3249,7 +3266,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 600, y: 195}
-  m_SizeDelta: {x: 500, y: 100}
+  m_SizeDelta: {x: 600, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &769058597
 MonoBehaviour:
@@ -3727,11 +3744,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 452388d5ba5d079429d185aad581f648, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  listenIP: 192.168.1.100
+  listenIP: 192.168.1.102
   listenPort: 30300
   serialNumber: 000000
   workMode: 2
-  showDebugInfo: 1
+  showDebugInfo: 0
   ipText: {fileID: 1568503907}
 --- !u!4 &960433359
 Transform:
@@ -4936,7 +4953,7 @@ MonoBehaviour:
   yScale: 0.5
   lineColor: {r: 0, g: 0.22352941, b: 0, a: 1}
   useWorldSpace: 0
-  lineWidth: 0.25
+  lineWidth: 0.01
   lineRenderer: {fileID: 1792035309}
   rmsAmpLabel: {fileID: 232602570}
 --- !u!120 &1792035309
@@ -5078,7 +5095,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 600, y: -115}
-  m_SizeDelta: {x: 500, y: 100}
+  m_SizeDelta: {x: 600, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1819510559
 MonoBehaviour:
@@ -5376,7 +5393,7 @@ MonoBehaviour:
   yScale: 0.5
   lineColor: {r: 0.6792453, g: 0.15592727, b: 0.23233989, a: 1}
   useWorldSpace: 0
-  lineWidth: 0.25
+  lineWidth: 0.01
   lineRenderer: {fileID: 1884243751}
   rmsAmpLabel: {fileID: 769058597}
 --- !u!120 &1884243751
