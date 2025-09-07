@@ -1680,13 +1680,22 @@ MonoBehaviour:
   m_GameObject: {fileID: 279159839}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c5856061092922447ab4abf27c8680ab, type: 3}
+  m_Script: {fileID: 11500000, guid: 9c5a7bfeeede3224cae599d053a8cbe6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  inputTexture: {fileID: 2800000, guid: acb60ab92da68d242bd0a6ec4859e10e, type: 3}
-  modelAsset: {fileID: 5022602860645237092, guid: ebc86db147a954647970919944ced19e, type: 3}
-  results:
+  modelAsset: {fileID: 5022602860645237092, guid: a38cfd481db4a6e49890ece57b935bca, type: 3}
+  backend: 256
+  inputName: 
+  windowSize: 768
+  downsampleTo: 384
+  stepSize: 300
+  targetChannels: 3
+  inferenceInterval: 0.2
+  enableInference: 1
+  output:
   - 0
+  - 0
+  inferenceCount: 0
 --- !u!1001 &283987800
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -3744,11 +3753,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 452388d5ba5d079429d185aad581f648, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  listenIP: 192.168.1.102
+  listenIP: 192.168.1.21
   listenPort: 30300
-  serialNumber: 000000
+  serialNumber: 000004
   workMode: 2
-  showDebugInfo: 0
+  showDebugInfo: 1
   ipText: {fileID: 1568503907}
 --- !u!4 &960433359
 Transform:

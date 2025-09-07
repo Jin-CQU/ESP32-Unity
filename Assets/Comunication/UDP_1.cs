@@ -90,12 +90,14 @@ public class UDP_1 : MonoBehaviour
             ipText.text = "本机IP: " + listenIP;
         }
         // 在Update中显示调试信息
+        /*
         if (showDebugInfo && Time.frameCount % 60 == 0) // 每秒显示一次
         {
             Debug.Log($"UDP状态: {(isRunning ? "运行" : "停止")}, " +
                      $"总包数: {receivedPacketCount}, 有效包: {validPacketCount}, " +
                      $"CRC错误: {crcErrorCount}, 序列号错误: {serialErrorCount}");
         }
+        */
     }
 
     // 获取本机IP地址
@@ -400,11 +402,12 @@ public class UDP_1 : MonoBehaviour
              
              // 触发RMS和AMP事件
              OnRMSAMPReceived?.Invoke(channel, rms, amp);
-             
+             /*
              if (showDebugInfo)
              {
                  Debug.Log($"解析成功: 通道{channel}, 数据点{dataPointCount}, 时间戳{timestamp}, RMS:{rms:F3}, AMP:{amp:F3}");
              }
+             */
         }
         catch (Exception e)
         {
