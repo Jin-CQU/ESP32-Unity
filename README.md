@@ -1,295 +1,81 @@
-# ESP32-Unity 脑电信号处理与SSVEP刺激系统
+# ESP32-Unity 实时脑电信号处理与 SSVEP 刺激系统
 
-## 项目概述
+## 项目亮点
+- 实时采集 ESP32 设备脑电数据，支持多通道
+- Unity 可视化 EEG 波形，参数可调
+- SSVEP 视觉刺激器，频率/颜色/时长可配置
+- 集成 Sentis/ONNX 模型推理，实时 EEG 分类
+- 推理后端可选（GPU/CPU），自动回退并显示实际后端
+- 性能计时与诊断（Schedule/Download 分段耗时、Softmax 概率、Inspector 字段）
+- 线程安全数据处理，避免 UI 卡顿
+- 支持 YVR SDK、Oculus XR
 
-这是一个基于Unity 2022.3.57f1c1开发的脑电信号处理与SSVEP（稳态视觉诱发电位）刺激系统。该系统主要用于接收和处理来自ESP32的实时脑电信号数据，并提供SSVEP视觉刺激功能，支持VR/AR设备（YVR SDK）。
+## 快速安装
+1. 克隆仓库并用 Unity 2022.3+ 打开
+2. （可选）安装 YVR SDK，配置 VR 设备
+3. 配置 ESP32 设备 IP/端口，确保数据包格式正确
+4. 运行主场景，系统自动初始化 UDP 接收与可视化
 
-## 系统架构
+## 主要模块
+- `Assets/Algorithm/EEG_Classify_test.cs`：EEG 实时推理组件，支持 ONNX 模型、后端选择、性能统计
+- `Assets/Comunication/UDP_1.cs`：UDP 通信，异步接收 ESP32 数据包，CRC 校验
+- `Assets/Data_Display/EEGVisualizer.cs`：脑电波形实时显示，支持多通道
+- `Assets/Stimulus/SSVEPStimulus.cs`：视觉刺激器，参数可调
+- `Assets/Logic/MainLogic.cs`：主逻辑控制
 
-### 核心模块
+## EEG 推理说明
+- Inspector 可选 GPUCompute/CPU，实际后端显示于 `actualBackend`
+- 推理输出自动 Softmax 归一化（等价 PyTorch `torch.softmax(outputs, dim=1)`）
+- 输入为最新 UDP 缓冲区数据，非随机测试
+- Inspector 显示 `lastInferenceTimeMs`、`averageInferenceTimeMs`、`lastScheduleTimeMs`、`lastDownloadTimeMs`，日志自动打印分段耗时
+- UDP 回调与主线程通过队列和标志同步，避免 Unity API 跨线程调用
+- Worker 创建与推理均可延迟/分帧执行，避免启动/推理卡顿
 
-#### 1. 通信模块 (`Assets/Comunication/`)
-- **UDP_1.cs**: 主要的UDP通信模块
-  - 支持多线程异步接收ESP32数据包
-  - 实现CRC校验和数据验证
-  - 支持多种工作模式（SEMG_LOW_FRE, SEMG_HIGH_FRE, EEG）
-  - 实时RMS和AMP值计算
-  - 数据包统计和错误监控
-
-- **Unity语句csharp联网功能客户端.cs**: TCP客户端模块
-  - 支持TCP连接和数据接收
-  - 多线程安全的消息队列
-  - 自动重连机制
-
-#### 2. 数据可视化模块 (`Assets/Data_Display/`)
-- **EEGVisualizer.cs**: 脑电信号可视化组件
-  - 实时波形显示（使用LineRenderer）
-  - 支持多通道数据显示
-  - 可调节的显示参数（颜色、宽度、缩放等）
-  - RMS和AMP值实时显示
-
-#### 3. 刺激模块 (`Assets/Stimulus/`)
-- **SSVEPStimulus.cs**: SSVEP视觉刺激器
-  - 可调节的闪烁频率（默认10Hz）
-  - 支持自定义颜色和持续时间
-  - 基于Image组件的视觉刺激
-
-#### 4. 逻辑控制模块 (`Assets/Logic/`)
-- **MainLogic.cs**: 主逻辑控制器
-  - 系统初始化和帧率控制
-  - 基础系统管理
-
-#### 5. VR/AR支持 (`Assets/XR/`, `Assets/YVRProjectSettings/`)
-- 集成YVR SDK支持VR设备
-- Oculus VR设备支持
-- XR管理配置
-
-## 数据格式规范
-
-### ESP32 UDP数据包结构
-
-每个数据包包含以下字段：
-```
-[2字节帧头] [3字节序列号] [1字节通道号] [2字节数据长度] [30字节EEG数据] [8字节时间戳] [1字节CRC]
-```
-
-- **帧头**: `0xAD 0xAD`
-- **序列号**: 3字节递增序列号
-- **通道号**: 0-3，对应4个EEG通道
-- **数据长度**: 固定为30字节
-- **EEG数据**: 30字节，每3字节对应一个采样点（24位有符号整数）
-- **时间戳**: 8字节时间戳
-- **CRC**: 1字节校验和
-
-### 配置参数
-
-#### UDP设置
-- **默认监听IP**: `192.168.1.100`
-- **默认监听端口**: `30300`
-- **序列号**: 6位十六进制（默认"000000"）
-
-#### 显示设置
-- **最大数据点**: 1000
-- **Y轴缩放**: 1.0
-- **线条颜色**: 绿色
-- **线条宽度**: 1.0
-
-#### SSVEP刺激设置
-- **闪烁频率**: 10Hz
-- **持续时间**: 10秒
-- **开启颜色**: 白色
-- **关闭颜色**: 灰色
-
-## 安装和配置
-
-### 系统要求
-
-- **Unity版本**: 2022.3.57f1c1 或更高版本
-- **操作系统**: Windows 10/11
-- **VR设备**: 支持YVR SDK的VR设备（可选）
-- **ESP32设备**: 用于发送脑电数据
-
-### 安装步骤
-
-1. **克隆项目**
-   ```bash
-   git clone [项目地址]
-   cd ESP32-Unity
-   ```
-
-2. **打开Unity项目**
-   - 使用Unity Hub打开项目
-   - 确保Unity版本兼容
-
-3. **配置YVR SDK**（可选）
-   - 确保YVR SDK已正确安装
-   - 路径：`D:/Unity_SDK/`
-
-4. **配置ESP32设备**
-   - 设置ESP32的IP地址和端口
-   - 确保数据包格式符合规范
-
-### 项目结构
-
+## 项目结构
 ```
 ESP32-Unity/
 ├── Assets/
-│   ├── Algorithm/           # 算法模块（待开发）
-│   ├── Comunication/        # 通信模块
-│   │   ├── UDP_1.cs        # UDP通信主模块
-│   │   └── Unity语句csharp联网功能客户端.cs  # TCP客户端
-│   ├── Data_Display/        # 数据可视化
-│   │   └── EEGVisualizer.cs # 脑电信号可视化
-│   ├── Logic/              # 逻辑控制
-│   │   └── MainLogic.cs    # 主逻辑控制器
-│   ├── Stimulus/           # 刺激模块
-│   │   └── SSVEPStimulus.cs # SSVEP刺激器
-│   ├── Fonts/              # 字体资源
-│   ├── Scenes/             # Unity场景
-│   ├── XR/                 # XR设备支持
-│   └── YVRProjectSettings/ # YVR项目设置
-├── ProjectSettings/        # Unity项目设置
-├── Packages/              # 包管理
-└── README.md             # 项目说明
+│   ├── Algorithm/           # EEG 推理与算法
+│   ├── Comunication/        # UDP 通信
+│   ├── Data_Display/        # EEG 可视化
+│   ├── Stimulus/            # SSVEP 刺激
+│   ├── Logic/               # 主逻辑
+│   ├── Scenes/              # Unity 场景
+│   ├── XR/                  # XR 支持
+│   └── YVRProjectSettings/  # YVR 配置
+├── ProjectSettings/         # Unity 项目设置
+├── Packages/                # 包管理
+└── README.md                # 项目说明
 ```
 
-## 使用方法
+## 性能与诊断
+- 推理总耗时、分段耗时、平均耗时均可在 Inspector 和日志中查看
+- 控制台日志如：`耗时:0.39ms(S:0.1+D:0.3)`，便于定位瓶颈
+- 后端不可用自动回退并提示
 
-### 基本使用流程
-
-1. **启动系统**
-   - 在Unity编辑器中打开项目
-   - 运行主场景
-   - 系统自动初始化UDP接收器
-
-2. **连接ESP32**
-   - 确保ESP32设备已配置正确的IP和端口
-   - 开始发送数据包
-   - 系统自动接收和解析数据
-
-3. **查看数据**
-   - 实时波形显示在场景中
-   - 控制台输出调试信息
-   - 可调节显示参数
-
-### SSVEP刺激使用
-
-1. **配置刺激参数**
-   - 在Inspector中调整SSVEPStimulus组件
-   - 设置频率、颜色、持续时间
-
-2. **启动刺激**
-   - 刺激器自动开始闪烁
-   - 可根据需要调整参数
-
-### 调试和监控
-
-- **启用调试信息**: 在UDP_1组件中勾选"显示调试信息"
-- **查看统计**: 控制台输出数据包统计信息
-- **错误监控**: 自动检测CRC错误和序列号错误
-
-## 技术特性
-
-### 实时处理能力
-- **多线程处理**: 使用独立线程处理UDP数据接收
-- **线程安全**: 使用ConcurrentQueue确保数据安全
-- **低延迟**: 优化的数据处理流程
-
-### 数据质量保证
-- **CRC校验**: 确保数据完整性
-- **序列号验证**: 检测数据包丢失
-- **错误统计**: 实时监控数据质量
-
-### 可视化功能
-- **实时波形**: 使用LineRenderer显示实时数据
-- **多通道支持**: 支持4通道数据显示
-- **参数调节**: 可调节显示样式和参数
-
-### VR/AR集成
-- **YVR SDK支持**: 完整的VR设备支持
-- **Oculus兼容**: 支持Oculus VR设备
-- **XR管理**: 统一的XR设备管理
+## 常见问题
+- UDP 连接失败：检查 IP/端口、防火墙、ESP32 配置
+- 数据显示异常：检查数据包格式、CRC 校验、显示参数
+- VR 设备连接问题：确认 YVR SDK 安装、设备驱动、XR 设置
+- 推理卡顿：建议使用分帧推理，检查后端选择
 
 ## 扩展开发
+- 新算法：在 `Assets/Algorithm/` 新建脚本并集成到 UDP_1.cs
+- 新可视化：参考 EEGVisualizer.cs 创建新组件
+- 新刺激模式：参考 SSVEPStimulus.cs 实现自定义逻辑
 
-### 添加新的信号处理算法
+## Git 换行符 (LF/CRLF) 说明
+建议添加 `.gitattributes` 统一换行符：
+```
+* text=auto
+*.cs text eol=lf
+*.md text eol=lf
+```
+如需 Windows CRLF，可调整规则并设置 `core.autocrlf`。
 
-1. 在`Assets/Algorithm/`目录下创建新的算法脚本
-2. 实现信号处理接口
-3. 在UDP_1.cs中集成新算法
-
-### 扩展可视化功能
-
-1. 参考`EEGVisualizer.cs`的实现
-2. 创建新的可视化组件
-3. 在场景中配置显示参数
-
-### 添加新的刺激模式
-
-1. 参考`SSVEPStimulus.cs`的实现
-2. 创建新的刺激器脚本
-3. 实现自定义刺激逻辑
-
-## 故障排除
-
-### 常见问题
-
-1. **UDP连接失败**
-   - 检查IP地址和端口配置
-   - 确认ESP32正在发送数据
-   - 检查防火墙设置
-
-2. **数据显示异常**
-   - 检查数据包格式是否正确
-   - 验证CRC校验
-   - 调整显示参数
-
-3. **VR设备连接问题**
-   - 确认YVR SDK安装正确
-   - 检查设备驱动
-   - 验证XR设置
-
-### 调试技巧
-
-- 启用调试日志查看详细信息
-- 使用Unity Profiler监控性能
-- 检查控制台错误信息
-
-## 性能指标
-
-### 系统性能
-- **数据处理延迟**: < 10ms
-- **内存使用**: < 100MB
-- **CPU使用率**: < 20%
-- **帧率**: 60 FPS
-
-### 数据规格
-- **采样率**: 250Hz
-- **分辨率**: 24位
-- **通道数**: 4通道
-- **数据包大小**: 47字节/通道
-
-## 依赖项
-
-### Unity包
-- **TextMesh Pro**: 3.0.7
-- **XR Management**: 4.5.1
-- **XR Oculus**: 4.5.1
-- **Timeline**: 1.7.6
-
-### 第三方SDK
-- **YVR Core**: 1.25.1
-- **YVR Platform**: 0.5.3
-- **YVR Utilities**: 0.15.11
-
-## 许可证
-
-本项目采用MIT许可证。详见LICENSE文件。
-
-## 贡献指南
-
-欢迎提交Issue和Pull Request来改进项目：
-
-1. Fork项目
-2. 创建功能分支
-3. 提交更改
-4. 创建Pull Request
-
-## 联系方式
-
-如有问题或建议，请通过以下方式联系：
-- 提交GitHub Issue
-- 发送邮件至项目维护者
-
-## 更新日志
-
-### v1.0.0
-- 初始版本发布
-- 基础UDP通信功能
-- SSVEP刺激器
-- 实时数据可视化
-- YVR SDK集成
+## 贡献与许可证
+- 欢迎提交 Issue 和 Pull Request
+- 本项目采用 MIT 许可证，详见 LICENSE 文件
 
 ---
-
-**注意**: 本系统主要用于研究和教育目的。在实际医疗应用中，请确保符合相关法规和标准。
+**注意**：本系统仅用于研究和教育目的，实际医疗应用请遵循相关法规。

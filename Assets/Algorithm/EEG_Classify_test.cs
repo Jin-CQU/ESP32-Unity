@@ -30,9 +30,14 @@ public class EEG_Classify_test : MonoBehaviour
     [SerializeField] private int inferenceCount = 0; // 推理次数
     [SerializeField] private int predictedClass = -1; // 预测类别 (0或1)
     [SerializeField] private float confidence = 0f; // 预测置信度
+    [SerializeField] private float lastInferenceTimeMs = 0f; // 最后一次推理耗时(毫秒)
+    [SerializeField] private float averageInferenceTimeMs = 0f; // 平均推理耗时(毫秒)
+    [SerializeField] private float lastScheduleTimeMs = 0f; // 最后一次Schedule耗时(毫秒)
+    [SerializeField] private float lastDownloadTimeMs = 0f; // 最后一次Download耗时(毫秒)
     [SerializeField] private bool preInitializeWorker = false; // 改为默认不预初始化，避免启动阻塞
     [SerializeField] private string workerStatus = "未初始化"; // Worker状态显示
     [SerializeField] private string startupStatus = "等待启动..."; // 启动状态显示
+    [SerializeField] private string actualBackend = "未知"; // 实际使用的后端类型
     
     private Worker worker;
     private float[] lastOutput;
@@ -53,6 +58,12 @@ public class EEG_Classify_test : MonoBehaviour
     private float dataTimeoutSeconds = 2.0f; // 数据超时时间（秒）
     private bool hasNewDataFlag = false; // 新数据标记，用于线程安全的时间更新
     
+    // 推理时间统计
+    private float totalInferenceTimeMs = 0f; // 总推理时间(毫秒)
+    private System.Diagnostics.Stopwatch inferenceStopwatch; // 推理计时器
+    private System.Diagnostics.Stopwatch scheduleStopwatch; // Schedule操作计时器
+    private System.Diagnostics.Stopwatch downloadStopwatch; // Download操作计时器
+    
     // 日志
     private ConcurrentQueue<string> logQueue = new ConcurrentQueue<string>();
 
@@ -61,6 +72,11 @@ public class EEG_Classify_test : MonoBehaviour
         // 绝对最简化启动 - 不做任何可能阻塞的操作
         workerStatus = "未初始化";
         startupStatus = "游戏启动中...";
+        
+        // 初始化推理计时器
+        inferenceStopwatch = new System.Diagnostics.Stopwatch();
+        scheduleStopwatch = new System.Diagnostics.Stopwatch();
+        downloadStopwatch = new System.Diagnostics.Stopwatch();
         
         // 立即启用推理功能，确保不会被遗忘
         enableInference = true;
@@ -391,10 +407,16 @@ public class EEG_Classify_test : MonoBehaviour
             
             SafeLog($"[SimpleInferenceTest] 输入张量已创建，形状: {inputShape}");
             
-            // 执行推理 - 最关键的测试点
+            // 🔥 在真正的推理操作前开始计时
             SafeLog("[SimpleInferenceTest] 即将执行worker.Schedule()...");
+            inferenceStopwatch.Restart();
+            scheduleStopwatch.Restart();
+            
+            // 执行推理 - 最关键的测试点
             worker.Schedule(input);
-            SafeLog("[SimpleInferenceTest] ✅ worker.Schedule() 完成");
+            scheduleStopwatch.Stop();
+            float scheduleTimeMs = (float)scheduleStopwatch.Elapsed.TotalMilliseconds;
+            SafeLog($"[SimpleInferenceTest] ✅ worker.Schedule() 完成 - 耗时:{scheduleTimeMs:F3}ms");
             
             // 获取结果
             SafeLog("[SimpleInferenceTest] 即将获取输出...");
@@ -404,8 +426,19 @@ public class EEG_Classify_test : MonoBehaviour
             if (output != null)
             {
                 SafeLog("[SimpleInferenceTest] 即将下载数据...");
+                downloadStopwatch.Restart();
                 var result = output.DownloadToArray();
-                SafeLog("[SimpleInferenceTest] ✅ DownloadToArray() 完成");
+                downloadStopwatch.Stop();
+                float downloadTimeMs = (float)downloadStopwatch.Elapsed.TotalMilliseconds;
+                SafeLog($"[SimpleInferenceTest] ✅ DownloadToArray() 完成 - 耗时:{downloadTimeMs:F3}ms");
+                
+                // 🔥 在核心推理操作完成后立即停止计时
+                inferenceStopwatch.Stop();
+                lastInferenceTimeMs = (float)inferenceStopwatch.Elapsed.TotalMilliseconds;
+                lastScheduleTimeMs = scheduleTimeMs;
+                lastDownloadTimeMs = downloadTimeMs;
+                
+                SafeLog($"[SimpleInferenceTest] 🕒 详细计时 - Schedule:{scheduleTimeMs:F3}ms + Download:{downloadTimeMs:F3}ms = 总计:{lastInferenceTimeMs:F3}ms");
                 
                 if (result != null && result.Length >= 2)
                 {
@@ -429,9 +462,22 @@ public class EEG_Classify_test : MonoBehaviour
                     
                     inferenceCount++;
                     
-                    // 合并为单行日志避免截断
-                    SafeLog($"[SimpleInferenceTest] ✅ 实时推理#{inferenceCount} - 原始:[{result[0]:F6},{result[1]:F6}] Softmax:[{probabilities[0]:F6},{probabilities[1]:F6}] 预测:类别{predictedClass} 置信度{confidence:F4}({confidence*100:F1}%)");
+                    // 更新平均推理时间
+                    totalInferenceTimeMs += lastInferenceTimeMs;
+                    averageInferenceTimeMs = totalInferenceTimeMs / inferenceCount;
+                    
+                    // 合并为单行日志避免截断，包含推理时间
+                    SafeLog($"[SimpleInferenceTest] ✅ 实时推理#{inferenceCount} - 原始:[{result[0]:F6},{result[1]:F6}] Softmax:[{probabilities[0]:F6},{probabilities[1]:F6}] 预测:类别{predictedClass} 置信度{confidence:F4}({confidence*100:F1}%) 耗时:{lastInferenceTimeMs:F3}ms(S:{scheduleTimeMs:F1}+D:{downloadTimeMs:F1}) 平均:{averageInferenceTimeMs:F3}ms");
                 }
+            }
+            else
+            {
+                // 如果没有输出，也要停止计时器
+                if (inferenceStopwatch.IsRunning)
+                {
+                    inferenceStopwatch.Stop();
+                }
+                SafeLog("[SimpleInferenceTest] ❌ 未获取到推理输出");
             }
             
             // 清理
@@ -444,6 +490,11 @@ public class EEG_Classify_test : MonoBehaviour
         {
             SafeLog($"[SimpleInferenceTest] ❌ 推理失败: {e.Message}", LogType.Error);
             isInferenceRunning = false;
+            // 确保计时器被停止
+            if (inferenceStopwatch.IsRunning)
+            {
+                inferenceStopwatch.Stop();
+            }
         }
     }
     
@@ -535,6 +586,9 @@ public class EEG_Classify_test : MonoBehaviour
         // 执行前先让出控制权
         yield return null;
         
+        // 🔥 在真正的推理操作前开始计时
+        inferenceStopwatch.Restart();
+        
         try
         {
             SafeLog("[EEG_Classify_test] 执行Sentis推理...");
@@ -553,6 +607,11 @@ public class EEG_Classify_test : MonoBehaviour
         if (!scheduleSuccess)
         {
             SafeLog($"[EEG_Classify_test] 推理执行错误: {scheduleError}", LogType.Error);
+            // 推理失败时停止计时器
+            if (inferenceStopwatch.IsRunning)
+            {
+                inferenceStopwatch.Stop();
+            }
             input?.Dispose();
             yield break;
         }
@@ -593,7 +652,22 @@ public class EEG_Classify_test : MonoBehaviour
                 resultError = e.Message;
             }
             
+            // 🔥 在核心推理操作完成后立即停止计时
+            if (inferenceStopwatch.IsRunning)
+            {
+                inferenceStopwatch.Stop();
+                lastInferenceTimeMs = (float)inferenceStopwatch.Elapsed.TotalMilliseconds;
+            }
+            
             yield return null; // 下载后立即让出控制权
+        }
+        else
+        {
+            // 如果无法获取输出张量，也要停止计时器
+            if (inferenceStopwatch.IsRunning)
+            {
+                inferenceStopwatch.Stop();
+            }
         }
         
         // 第三步：处理结果
@@ -617,8 +691,13 @@ public class EEG_Classify_test : MonoBehaviour
                 confidence = probabilities[1];
             }
             
-            SafeLog($"[InferenceCoroutine] 推理#{inferenceCount} - 类别{predictedClass} 置信度{confidence:F4} Softmax:[{probabilities[0]:F6},{probabilities[1]:F6}]");
             inferenceCount++;
+            
+            // 更新平均推理时间（时间已在数据下载后计算）
+            totalInferenceTimeMs += lastInferenceTimeMs;
+            averageInferenceTimeMs = totalInferenceTimeMs / inferenceCount;
+            
+            SafeLog($"[InferenceCoroutine] 推理#{inferenceCount} - 类别{predictedClass} 置信度{confidence:F4} Softmax:[{probabilities[0]:F6},{probabilities[1]:F6}] 耗时:{lastInferenceTimeMs:F2}ms 平均:{averageInferenceTimeMs:F2}ms");
             resultSuccess = true;
         }
         
@@ -628,6 +707,9 @@ public class EEG_Classify_test : MonoBehaviour
         // 最终状态设置和错误处理
         if (!resultSuccess)
         {
+            // 推理失败时也要停止计时器
+            inferenceStopwatch.Stop();
+            
             if (resultError != null)
             {
                 SafeLog($"[EEG_Classify_test] 推理失败: {resultError}");
@@ -716,7 +798,21 @@ public class EEG_Classify_test : MonoBehaviour
         }
         
         workerStatus = "模型加载成功";
-        SafeLog("[EEG_Classify_test] 模型加载成功");
+        SafeLog($"[EEG_Classify_test] 模型加载成功 - 输入数量:{model.inputs.Count}, 输出数量:{model.outputs.Count}");
+        
+        // 打印模型详细信息用于诊断
+        if (model.inputs.Count > 0)
+        {
+            var inputInfo = model.inputs[0];
+            SafeLog($"[EEG_Classify_test] 模型输入: {inputInfo.name}");
+        }
+        if (model.outputs.Count > 0)
+        {
+            var outputInfo = model.outputs[0];
+            SafeLog($"[EEG_Classify_test] 模型输出: {outputInfo.name}");
+        }
+        SafeLog($"[EEG_Classify_test] 模型层数: {model.layers.Count}");
+        
         yield return null;
         yield return null; // 额外等待确保模型完全加载
         
@@ -729,12 +825,26 @@ public class EEG_Classify_test : MonoBehaviour
         
         try
         {
-            // 强制使用CPU后端避免GPU初始化阻塞
-            newWorker = new Worker(model, BackendType.CPU);
+            // 使用 Inspector 中配置的后端类型，而不是强制CPU
+            SafeLog($"[EEG_Classify_test] 尝试使用后端: {backend}");
+            newWorker = new Worker(model, backend);
         }
         catch (Exception e)
         {
             workerError = e.Message;
+            // 如果配置的后端失败，回退到CPU
+            SafeLog($"[EEG_Classify_test] {backend} 后端失败，回退到CPU: {e.Message}", LogType.Warning);
+            try
+            {
+                newWorker = new Worker(model, BackendType.CPU);
+                actualBackend = "CPU(回退)";
+                SafeLog("[EEG_Classify_test] CPU 后端创建成功");
+            }
+            catch (Exception cpuError)
+            {
+                workerError = $"{backend}失败: {e.Message}, CPU也失败: {cpuError.Message}";
+                actualBackend = "失败";
+            }
         }
         
         yield return null; // Worker创建后让出控制权
@@ -760,7 +870,11 @@ public class EEG_Classify_test : MonoBehaviour
         worker = newWorker;
         inferenceReady = true;
         workerStatus = "初始化完成";
-        SafeLog("[EEG_Classify_test] Worker初始化完全成功，可以开始推理");
+        
+        // 记录实际使用的后端
+        actualBackend = backend.ToString();
+        
+        SafeLog($"[EEG_Classify_test] Worker初始化完全成功，使用后端: {actualBackend}，可以开始推理");
         
         // 重要：Worker创建后不要立即测试，这可能导致阻塞
         // 让Worker在后台准备就绪

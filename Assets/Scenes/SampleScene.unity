@@ -1684,7 +1684,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   modelAsset: {fileID: 5022602860645237092, guid: a38cfd481db4a6e49890ece57b935bca, type: 3}
-  backend: 256
+  backend: 512
   inputName: 
   windowSize: 768
   downsampleTo: 384
@@ -1696,6 +1696,16 @@ MonoBehaviour:
   - 0
   - 0
   inferenceCount: 0
+  predictedClass: -1
+  confidence: 0
+  lastInferenceTimeMs: 0
+  averageInferenceTimeMs: 0
+  lastScheduleTimeMs: 0
+  lastDownloadTimeMs: 0
+  preInitializeWorker: 1
+  workerStatus: "\u672A\u521D\u59CB\u5316"
+  startupStatus: "\u7B49\u5F85\u542F\u52A8..."
+  actualBackend: "\u672A\u77E5"
 --- !u!1001 &283987800
 PrefabInstance:
   m_ObjectHideFlags: 0
