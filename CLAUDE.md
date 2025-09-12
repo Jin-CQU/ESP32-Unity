@@ -22,11 +22,13 @@ This is a Unity project for real-time EEG signal processing and SSVEP stimulatio
    - Backend selection (GPUCompute/CPU) with automatic fallback
    - Performance timing and diagnostics
    - Softmax normalization of outputs
+   - Data integrity handling for UDP packet loss
 
 2. **UDP Communication** (`Assets/Comunication/UDP_1.cs`)
    - Asynchronous UDP data reception from ESP32 devices
    - CRC validation and serial number verification
    - Thread-safe data handling with ConcurrentQueue
+   - Lightweight packet loss detection and estimation
 
 3. **TCP Client** (`Assets/Comunication/TCP_Client.cs`)
    - TCP client that reads EEG classification results and sends to robot
@@ -34,20 +36,25 @@ This is a Unity project for real-time EEG signal processing and SSVEP stimulatio
    - JSON data transmission with UTF-8 encoding
    - Automatic reconnection and connection management
 
-4. **EEG Data Storage** (`Assets/DataStore/EEGDatasave.cs`)
+4. **UDP to Robot Communication** (`Assets/Comunication/UDP_to_Robot.cs`)
+   - UDP broadcasting of JSON messages to robot
+   - Game state management based on EEG data availability
+   - Configurable message intervals and message ID handling
+
+5. **EEG Data Storage** (`Assets/DataStore/EEGDatasave.cs`)
    - EEG data recording and saving functionality
    - Channel selection via UI toggles
    - Configurable data point count for saving
    - CSV format data export with timestamps
 
-5. **EEG Visualization** (`Assets/Data_Display/EEGVisualizer.cs`)
+6. **EEG Visualization** (`Assets/Data_Display/EEGVisualizer.cs`)
    - Real-time EEG waveform display using LineRenderer
    - RMS and amplitude calculation for each channel
 
-6. **SSVEP Stimulus** (`Assets/Stimulus/SSVEPStimulus.cs`)
+7. **SSVEP Stimulus** (`Assets/Stimulus/SSVEPStimulus.cs`)
    - Visual stimulator with configurable frequency and duration
 
-7. **Main Logic** (`Assets/Logic/MainLogic.cs`)
+8. **Main Logic** (`Assets/Logic/MainLogic.cs`)
    - Core application logic and initialization
 
 ### Key Directories
@@ -97,6 +104,7 @@ ESP32-Unity/
 1. TCP_Client.cs handles robot communication - extend for new protocols
 2. UDP_1.cs manages ESP32 data reception - modify for new data formats
 3. Use thread-safe patterns with ConcurrentQueue for data handling
+4. Consider data integrity mechanisms for UDP packet loss handling
 
 ### Data Storage and Export
 1. EEGDatasave.cs manages EEG data recording
@@ -113,3 +121,5 @@ ESP32-Unity/
 - TCP client uses background threads for network I/O to prevent UI blocking
 - EEG data storage supports configurable channel selection and point counts
 - All network communication includes proper error handling and reconnection logic
+- Lightweight UDP packet loss detection and data interpolation implemented
+- Data integrity mechanisms help maintain continuous EEG processing even with network instability

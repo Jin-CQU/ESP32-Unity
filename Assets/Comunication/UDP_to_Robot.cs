@@ -2,6 +2,7 @@ using System;
 using System.Net.Sockets;
 using System.Text;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class UDP_to_Robot : MonoBehaviour
 {
@@ -13,6 +14,8 @@ public class UDP_to_Robot : MonoBehaviour
     public float broadcastInterval = 1.0f; // 广播间隔（秒）
     public float messageIdChangeInterval = 15.0f; // MessageId变化间隔（秒）
     public float eegDataTimeout = 1.0f; // EEG数据超时时间（秒）
+
+    public Text isWalking;
     
     [Header("Component References")]
     public EEG_Classify_test eegClassifier; // EEG分类器引用
@@ -22,9 +25,11 @@ public class UDP_to_Robot : MonoBehaviour
     private float lastBroadcastTime = 0f;
     private float lastMessageIdChangeTime = 0f;
     private int messageId = 1;
+    private bool messageIdFlag = false;
     private bool isAccomplish = false; // 是否想象成功
     private float lastEegDataTime = 0f; // 最后一次接收到EEG数据的时间
     private int lastPacketCount = 0; // 上一次的数据包计数
+    private int lastMessageId = 0; // 记录上一次的MessageId用于比较
     
     // JSON消息结构
     [Serializable]
@@ -72,6 +77,7 @@ public class UDP_to_Robot : MonoBehaviour
         if (Time.time - lastMessageIdChangeTime >= messageIdChangeInterval)
         {
             messageId++;
+            
             lastMessageIdChangeTime = Time.time;
             Debug.Log("MessageId updated to: " + messageId);
         }
@@ -155,7 +161,23 @@ public class UDP_to_Robot : MonoBehaviour
             
             // 转换为字节数组
             byte[] data = Encoding.UTF8.GetBytes(jsonMessage);
-            
+
+            // 只在messageId发生变化时更新isWalking显示
+            if (messageId != lastMessageId)
+            {
+                if (message.isAccomplish == true && message.GameState == "playing")
+                {
+                    isWalking.text = "Walking";
+                    isWalking.color = new Color(0.9622642f, 0.1027691f, 0.08775356f);
+                }
+                else
+                {
+                    isWalking.text = "Rest";
+                    isWalking.color = new Color(0.07199074f, 0.654088f, 0.183762f);
+                }
+                
+                lastMessageId = messageId; // 更新记录的消息ID
+            }
             // 发送UDP广播
             udpClient.Send(data, data.Length, broadcastAddress, broadcastPort);
             

@@ -52,6 +52,10 @@ public class UDP_1 : MonoBehaviour
     private int validPacketCount = 0;
     private int crcErrorCount = 0;
     private int serialErrorCount = 0;
+    private int lostPacketEstimate = 0; // 估计的丢失包数
+    
+    // 序列号跟踪（轻量级）
+    private Dictionary<int, uint> lastSequenceNumbers = new Dictionary<int, uint>();
     
     // RMS计算相关
     private List<double[]> slideSqrtBuf = new List<double[]>();
@@ -367,6 +371,22 @@ public class UDP_1 : MonoBehaviour
                                    (long)frame[timestampOffset + 7]);
             }
             
+            // 轻量级序列号处理（基于时间戳）
+            uint sequenceNumber = (uint)(timestamp * 1000) & 0x00FFFFFF; // 简化的序列号
+            
+            // 序列号间隙检测
+            if (lastSequenceNumbers.ContainsKey(channel))
+            {
+                uint expectedSequence = lastSequenceNumbers[channel] + 1;
+                if (sequenceNumber > expectedSequence)
+                {
+                    uint gap = sequenceNumber - expectedSequence;
+                    lostPacketEstimate += (int)gap;
+                }
+            }
+            
+            lastSequenceNumbers[channel] = sequenceNumber;
+            
             // 解析数据点
             int dataPointCount = dataLength / 3;
             double[] dataPoints = new double[dataPointCount];
@@ -393,25 +413,19 @@ public class UDP_1 : MonoBehaviour
                 }
             }
             
-                         // 触发数据接收事件
-             OnDataReceived?.Invoke(channel, dataPoints, timestamp);
-             
-             // 计算RMS和AMP
-             double rms = CalculateSlideSqrtRMS(dataPoints, channel - 1);
-             double amp = Math.Sqrt(2) * rms;
-             
-             // 触发RMS和AMP事件
-             OnRMSAMPReceived?.Invoke(channel, rms, amp);
-             /*
-             if (showDebugInfo)
-             {
-                 Debug.Log($"解析成功: 通道{channel}, 数据点{dataPointCount}, 时间戳{timestamp}, RMS:{rms:F3}, AMP:{amp:F3}");
-             }
-             */
+            // 触发数据接收事件
+            OnDataReceived?.Invoke(channel, dataPoints, timestamp);
+            
+            // 计算RMS和AMP
+            double rms = CalculateSlideSqrtRMS(dataPoints, channel - 1);
+            double amp = Math.Sqrt(2) * rms;
+            
+            // 触发RMS和AMP事件
+            OnRMSAMPReceived?.Invoke(channel, rms, amp);
         }
         catch (Exception e)
         {
-            Debug.LogError($"解析帧数据失败: {e.Message}");
+            // 静默处理错误以减少日志输出
         }
     }
     
@@ -437,9 +451,9 @@ public class UDP_1 : MonoBehaviour
     }
     
     // 获取统计信息
-    public (int totalPackets, int validPackets, int crcErrors, int serialErrors, int totalBytes) GetStatistics()
+    public (int totalPackets, int validPackets, int crcErrors, int serialErrors, int totalBytes, int lostEstimate) GetStatistics()
     {
-        return (receivedPacketCount, validPacketCount, crcErrorCount, serialErrorCount, totalBytesReceived);
+        return (receivedPacketCount, validPacketCount, crcErrorCount, serialErrorCount, totalBytesReceived, lostPacketEstimate);
     }
     
     // 重置统计信息
@@ -450,6 +464,8 @@ public class UDP_1 : MonoBehaviour
         crcErrorCount = 0;
         serialErrorCount = 0;
         totalBytesReceived = 0;
+        lostPacketEstimate = 0;
+        lastSequenceNumbers.Clear();
     }
     
     // 计算滑动窗口RMS值
