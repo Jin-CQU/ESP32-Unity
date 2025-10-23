@@ -16,12 +16,18 @@ public class EEGDatasave : MonoBehaviour
     // 数据缓存
     private Dictionary<int, List<(double value, double timestamp)>> channelData = new();
     private HashSet<int> selectedChannels = new();
-    private int saveDataCount = 1000; // 默认保存点数
+    private HashSet<int> completedChannels = new();
+    private HashSet<int> activeChannels = new();
+    private readonly object dataLock = new();
+    private int saveDataCount = 30000; // 默认保存点数
     private bool isRecording = false;
     private DateTime recordStartTime;
     
     // AR设备存储路径（预留，需要根据实际设备确定）
     private string arDeviceStoragePath = "/storage/emulated/0/Download/Data"; // Android设备默认下载目录
+
+    // 后台线程标记完成，由主线程在下一帧一次性更新UI
+    private volatile bool _pendingCompletedUI = false;
 
     void Start()
     {
@@ -63,6 +69,20 @@ public class EEGDatasave : MonoBehaviour
         // 开始记录
         StartRecording();
     }
+
+    private void Update()
+    {
+        if (_pendingCompletedUI)
+        {
+            _pendingCompletedUI = false;
+            var btnText = recordButton != null ? recordButton.GetComponentInChildren<TextMeshProUGUI>() : null;
+            if (btnText != null)
+            {
+                btnText.text = "Completed";
+                btnText.color = Color.red;
+            }
+        }
+    }
     
     private void StartRecording()
     {
@@ -70,46 +90,57 @@ public class EEGDatasave : MonoBehaviour
         TextMeshProUGUI btnText = recordButton.GetComponentInChildren<TextMeshProUGUI>();
         if (btnText != null)
         {
-            btnText.text = "Recording...";
+            btnText.text = "Recording";
+            btnText.color = Color.green;
         }
 
-        // 获取选中的通道
-        selectedChannels.Clear();
-        if (channelToggles != null)
+        // 获取选中的通道与保存点数
+        lock (dataLock)
         {
-            for (int i = 0; i < channelToggles.Length; i++)
+            selectedChannels.Clear();
+            if (channelToggles != null)
             {
-                if (channelToggles[i] != null && channelToggles[i].isOn)
+                for (int i = 0; i < channelToggles.Length; i++)
                 {
-                    selectedChannels.Add(i + 1); // 通道号从1开始
+                    if (channelToggles[i] != null && channelToggles[i].isOn)
+                    {
+                        selectedChannels.Add(i + 1); // 通道号从1开始
+                    }
                 }
             }
-        }
 
-        // 获取保存点数
-        if (dataCountInput != null && int.TryParse(dataCountInput.text, out int count))
-        {
-            saveDataCount = count;
-        }
-        else
-        {
-            saveDataCount = 1000; // 默认值
-        }
+            if (dataCountInput != null && int.TryParse(dataCountInput.text, out int count))
+            {
+                saveDataCount = count;
+            }
+            else
+            {
+                saveDataCount = 30000; // 默认值
+            }
 
-        // 初始化数据缓存
-        channelData.Clear();
-        foreach (var channel in selectedChannels)
-        {
-            channelData[channel] = new List<(double, double)>();
+            // 初始化数据缓存
+            channelData.Clear();
+            completedChannels.Clear();
+            activeChannels.Clear();
+            foreach (var channel in selectedChannels)
+            {
+                channelData[channel] = new List<(double, double)>();
+            }
         }
         
         isRecording = true;
         recordStartTime = DateTime.Now;
     }
     
-    private void StopRecording()
+    private void StopRecording(bool setCompletedUI = false)
     {
+        bool wasRecording = isRecording;
         isRecording = false;
+
+        if (setCompletedUI && wasRecording)
+        {
+            _pendingCompletedUI = true;
+        }
     }
     
     // 重置按钮状态
@@ -119,54 +150,78 @@ public class EEGDatasave : MonoBehaviour
         if (btnText != null)
         {
             btnText.text = "Start Record";
+            btnText.color = Color.black;
         }
     }
 
     // 数据接收回调
+    // EEG数据接收回调
+    // channel: 通道号（从1开始）
+    // data: 当前批次的数据数组
+    // timestamp: ESP32传来的时间戳（单位毫秒）
     private void OnEEGDataReceived(int channel, double[] data, double timestamp)
     {
-        if (!isRecording || !selectedChannels.Contains(channel))
+        // 如果未处于记录状态，直接返回
+        if (!isRecording)
             return;
 
-        if (!channelData.ContainsKey(channel))
-            channelData[channel] = new List<(double, double)>();
+        bool shouldSave = false; // 标记是否需要保存数据
+        bool shouldStop = false; // 标记是否需要停止记录
 
-        foreach (var value in data)
+        lock (dataLock)
         {
-            if (channelData[channel].Count < saveDataCount)
+            // 如果该通道未被选中，忽略
+            if (!selectedChannels.Contains(channel))
             {
-                channelData[channel].Add((value, timestamp));
-                
-                // 检查是否达到指定点数
-                if (channelData[channel].Count >= saveDataCount)
+                return;
+            }
+
+            // 获取或初始化该通道的数据列表
+            if (!channelData.TryGetValue(channel, out var dataList))
+            {
+                dataList = new List<(double, double)>();
+                channelData[channel] = dataList;
+            }
+
+            if (data != null && data.Length > 0)
+            {
+                activeChannels.Add(channel);
+            }
+
+            // 添加数据到缓存
+            foreach (var value in data)
+            {
+                // 达到保存点数上限则跳出
+                if (dataList.Count >= saveDataCount)
                 {
-                    // 立即保存该通道的数据
-                    SaveChannelData(channel);
-                    
-                    // 检查所有通道是否都完成
-                    bool allChannelsComplete = true;
-                    foreach (var ch in selectedChannels)
-                    {
-                        if (channelData.ContainsKey(ch) && channelData[ch].Count < saveDataCount)
-                        {
-                            allChannelsComplete = false;
-                            break;
-                        }
-                    }
-                    
-                    if (allChannelsComplete)
-                    {
-                        StopRecording();
-                        
-                        // 更新按钮文字为完成状态
-                        TextMeshProUGUI btnText = recordButton.GetComponentInChildren<TextMeshProUGUI>();
-                        if (btnText != null)
-                        {
-                            btnText.text = "Completed";
-                        }
-                    }
+                    break;
+                }
+
+                dataList.Add((value, timestamp));
+
+                // 达到保存点数，标记保存并记录完成通道
+                if (dataList.Count >= saveDataCount)
+                {
+                    shouldSave = true;
+                    completedChannels.Add(channel);
+                    activeChannels.Remove(channel);
+                    // 所有正在传输的数据通道都完成则停止
+                    shouldStop = activeChannels.Count == 0 && completedChannels.Count > 0;
+                    break;
                 }
             }
+        }
+
+        // 保存数据到文件
+        if (shouldSave)
+        {
+            SaveChannelData(channel);
+        }
+
+        // 所有通道完成后，停止记录并更新UI
+        if (shouldStop)
+        {
+            StopRecording(setCompletedUI: true);
         }
     }
     
@@ -206,6 +261,7 @@ public class EEGDatasave : MonoBehaviour
         catch (Exception ex)
         {
             // 保存失败，继续尝试本地保存
+            Debug.LogWarning($"保存到AR设备目录失败: {ex.Message}");
         }
         
         // 如果AR设备保存失败，保存到本地
@@ -228,6 +284,7 @@ public class EEGDatasave : MonoBehaviour
             catch (Exception ex)
             {
                 // 本地保存也失败
+                Debug.LogWarning($"保存到本地失败: {ex.Message}");
             }
         }
     }

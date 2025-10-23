@@ -31,7 +31,6 @@ public class EEG_Classify_test : MonoBehaviour
     [SerializeField] private int targetChannels = 3; // 目标通道数
     [SerializeField] private float inferenceInterval = 1.0f; // 推理间隔改为1秒
     [SerializeField] private bool enableInference = false; // 默认关闭推理，避免启动卡顿
-    [SerializeField] private bool debugMode = false; // 调试模式开关
 
     [Header("推理结果")]
     [SerializeField] private float[] output = new float[2]; // 推理输出结果（Softmax概率）

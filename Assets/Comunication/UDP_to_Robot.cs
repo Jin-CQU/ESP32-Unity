@@ -26,7 +26,7 @@ public class UDP_to_Robot : MonoBehaviour
     private float lastMessageIdChangeTime = 0f;
     private int messageId = 1;
     private bool messageIdFlag = false;
-    private bool isAccomplish = false; // 是否想象成功
+    private string isAccomplish = "false"; // 是否想象成功
     private float lastEegDataTime = 0f; // 最后一次接收到EEG数据的时间
     private int lastPacketCount = 0; // 上一次的数据包计数
     private int lastMessageId = 0; // 记录上一次的MessageId用于比较
@@ -36,7 +36,7 @@ public class UDP_to_Robot : MonoBehaviour
     public class RobotMessage
     {
         public string GameState = "playing"; // 游戏状态
-        public bool isAccomplish; // 是否想象成功
+        public string isAccomplish; // 是否想象成功
         public int MessageId; // 消息ID
         public int EegAttention = 87; // 脑电注意力分数
     }
@@ -118,7 +118,7 @@ public class UDP_to_Robot : MonoBehaviour
         try
         {
             string gameState = "stop"; // 默认为stop状态
-            bool currentIsAccomplish = false;
+            string currentIsAccomplish = "false";
             
             // 检查是否有最近的EEG数据
             if (Time.time - lastEegDataTime < eegDataTimeout)
@@ -134,15 +134,23 @@ public class UDP_to_Robot : MonoBehaviour
                         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                     var confidenceField = typeof(EEG_Classify_test).GetField("confidence", 
                         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    
+
                     if (predictedClassField != null && confidenceField != null)
                     {
                         int predictedClass = (int)predictedClassField.GetValue(eegClassifier);
                         float confidence = (float)confidenceField.GetValue(eegClassifier);
-                        
+
                         // 根据分类结果和置信度判断是否想象成功
                         // 这里假设类别1（专注）且置信度>0.5为成功
-                        currentIsAccomplish = (predictedClass == 1 && confidence > 0.5f);
+                        //currentIsAccomplish = (predictedClass == 1 && confidence > 0.5f);
+                        if (predictedClass == 1 && confidence > 0.7f)
+                        {
+                            currentIsAccomplish = "true";
+                        }
+                        else
+                        {
+                            currentIsAccomplish = "false";
+                        }
                     }
                 }
             }
@@ -165,7 +173,7 @@ public class UDP_to_Robot : MonoBehaviour
             // 只在messageId发生变化时更新isWalking显示
             if (messageId != lastMessageId)
             {
-                if (message.isAccomplish == true && message.GameState == "playing")
+                if (message.isAccomplish == "true" && message.GameState == "playing")
                 {
                     isWalking.text = "Walking";
                     isWalking.color = new Color(0.9622642f, 0.1027691f, 0.08775356f);
