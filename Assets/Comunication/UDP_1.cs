@@ -1,17 +1,15 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
-using System.Linq;
 using UnityEngine.UI;
 using UnityEngine;
 
 public class UDP_1 : MonoBehaviour
 {
     [Header("UDP配置")]
-    [SerializeField] private string listenIP = "192.168.1.109";
+    [SerializeField] private string listenIP = "192.168.8.118";
     [SerializeField] private int listenPort = 30300;
     
     [Header("设备配置")]
@@ -58,8 +56,9 @@ public class UDP_1 : MonoBehaviour
     private Dictionary<int, uint> lastSequenceNumbers = new Dictionary<int, uint>();
     
     // RMS计算相关
-    private List<double[]> slideSqrtBuf = new List<double[]>();
-    private int[] curIdx = new int[4];
+    private Dictionary<int, double[]> slideSqrtBuf = new Dictionary<int, double[]>();
+    private Dictionary<int, int> curIdx = new Dictionary<int, int>();
+    private const int RMSWindowSize = 1000;
     private double[] winBuf = new double[50];
     // private int winPos = 0;
     // private double winSum = 0;
@@ -70,7 +69,9 @@ public class UDP_1 : MonoBehaviour
     
     void Start()
     {
-        listenIP = GetLocalIPAddress(); // 自动获取本机IP
+        // listenIP = GetLocalIPAddress(); // 自动获取本机IP
+        // 用LAN连路由器时，识别到的本机IP会是所连的WIFI分配的IP，要使用路由器分配的IP需要手动设置
+        listenIP = "192.168.8.118";
         if (ipText != null)
         {
             ipText.text = "本机IP: " + listenIP;
@@ -208,11 +209,7 @@ public class UDP_1 : MonoBehaviour
     private void InitializeRMSBuffers()
     {
         slideSqrtBuf.Clear();
-        for (int i = 0; i < 4; i++)
-        {
-            slideSqrtBuf.Add(new double[1000]); // 默认1000点窗口
-            curIdx[i] = 0;
-        }
+        curIdx.Clear();
     }
     
     public void StartUDPReceiver()
@@ -296,7 +293,7 @@ public class UDP_1 : MonoBehaviour
     private void ProcessReceivedData(byte[] buffer, int length)
     {
         // 查找帧头
-        for (int i = 0; i < length - frameLength; i++)
+        for (int i = 0; i <= length - frameLength; i++)
         {
             if (buffer[i] == frameHeader[0] && buffer[i + 1] == frameHeader[1])
             {
@@ -417,7 +414,7 @@ public class UDP_1 : MonoBehaviour
             OnDataReceived?.Invoke(channel, dataPoints, timestamp);
             
             // 计算RMS和AMP
-            double rms = CalculateSlideSqrtRMS(dataPoints, channel - 1);
+            double rms = CalculateSlideSqrtRMS(dataPoints, channel);
             double amp = Math.Sqrt(2) * rms;
             
             // 触发RMS和AMP事件
@@ -466,30 +463,47 @@ public class UDP_1 : MonoBehaviour
         totalBytesReceived = 0;
         lostPacketEstimate = 0;
         lastSequenceNumbers.Clear();
+        InitializeRMSBuffers();
     }
     
-    // 计算滑动窗口RMS值
-    private double CalculateSlideSqrtRMS(double[] data, int channelIdx)
+    private void EnsureChannelBuffer(int channel)
     {
-        double ret = 0;
-        double validSum = 0;
-        
-        // 将数据添加到滑动窗口缓冲区
+        if (!slideSqrtBuf.ContainsKey(channel))
+        {
+            slideSqrtBuf[channel] = new double[RMSWindowSize];
+            curIdx[channel] = 0;
+        }
+    }
+
+    // 计算滑动窗口RMS值
+    private double CalculateSlideSqrtRMS(double[] data, int channel)
+    {
+        EnsureChannelBuffer(channel);
+
+        double[] buffer = slideSqrtBuf[channel];
+        int bufferLength = buffer.Length;
+        int index = curIdx[channel];
+
         for (int i = 0; i < data.Length; i++)
         {
-            slideSqrtBuf[channelIdx][curIdx[channelIdx]] = data[i];
-            curIdx[channelIdx] += 1;
-            if (slideSqrtBuf[channelIdx].Length == curIdx[channelIdx])
+            buffer[index] = data[i];
+            index++;
+            if (index == bufferLength)
             {
-                curIdx[channelIdx] = 0;
+                index = 0;
             }
         }
-        
-        // 计算有效值的平方和
-        validSum = slideSqrtBuf[channelIdx].Select(x => Math.Pow(x, 2)).Sum();
-        ret = Math.Sqrt(validSum / slideSqrtBuf[channelIdx].Length);
-        
-        return ret;
+
+        curIdx[channel] = index;
+
+        double validSum = 0;
+        for (int i = 0; i < bufferLength; i++)
+        {
+            double value = buffer[i];
+            validSum += value * value;
+        }
+
+        return Math.Sqrt(validSum / bufferLength);
     }
 }
 

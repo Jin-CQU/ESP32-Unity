@@ -19,8 +19,8 @@ public class EEGVisualizer : MonoBehaviour
 
     private ConcurrentQueue<float> dataQueue = new ConcurrentQueue<float>();
     private UDP_1 udpReceiver;
-    private double[] channelRMS = new double[4];
-    private double[] channelAMP = new double[4];
+    private double[] channelRMS = new double[8];
+    private double[] channelAMP = new double[8];
 
     void Start()
     {
@@ -221,7 +221,7 @@ public class EEGVisualizer : MonoBehaviour
 
     private void UpdateRMSAMP()
     {
-        if (rmsAmpLabel != null && channelNumber >= 0 && channelNumber < channelRMS.Length)
+        if (rmsAmpLabel != null && channelNumber >= 0 && channelNumber <= channelRMS.Length)
         {
             rmsAmpLabel.text = $"Ch{channelNumber} RMS: {channelRMS[channelNumber - 1]:F2}  AMP: {channelAMP[channelNumber - 1]:F2}";
         }
