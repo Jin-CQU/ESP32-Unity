@@ -7,12 +7,17 @@ using System.Threading;
 using System.Linq;
 using UnityEngine.UI;
 using UnityEngine;
+using System.Net.NetworkInformation;
 
 public class UDP_1 : MonoBehaviour
 {
     [Header("UDP配置")]
     [SerializeField] private string listenIP = "192.168.1.109";
     [SerializeField] private int listenPort = 30300;
+    [Tooltip("是否绑定到所有网卡(0.0.0.0)。建议开启，避免网卡变化导致绑定失败。")]
+    [SerializeField] private bool bindAllInterfaces = true;
+    [Tooltip("自动探测本机 IPv4 并显示在 UI，仅用于显示或在未指定时作为默认值")]
+    [SerializeField] private bool autoDetectLocalIP = true;
     
     [Header("设备配置")]
     [SerializeField] private string serialNumber = "000000"; // 6位十六进制序列号
@@ -70,7 +75,15 @@ public class UDP_1 : MonoBehaviour
     
     void Start()
     {
-        listenIP = GetLocalIPAddress(); // 自动获取本机IP
+        if (autoDetectLocalIP)
+        {
+            // 自动获取本机IP，用于显示；实际绑定可按 bindAllInterfaces 选择
+            var detected = GetLocalIPAddress();
+            if (!string.IsNullOrWhiteSpace(detected))
+            {
+                listenIP = detected;
+            }
+        }
         if (ipText != null)
         {
             ipText.text = "本机IP: " + listenIP;
@@ -110,13 +123,33 @@ public class UDP_1 : MonoBehaviour
         string localIP = "";
         try
         {
-            var host = Dns.GetHostEntry(Dns.GetHostName());
-            foreach (var ip in host.AddressList)
+            // 优先获取处于 Up 状态且非回环网卡的 IPv4
+            foreach (var ni in NetworkInterface.GetAllNetworkInterfaces())
             {
-                if (ip.AddressFamily == AddressFamily.InterNetwork)
+                if (ni.OperationalStatus != OperationalStatus.Up) continue;
+                if (ni.NetworkInterfaceType == NetworkInterfaceType.Loopback) continue;
+                var ipProps = ni.GetIPProperties();
+                foreach (var ua in ipProps.UnicastAddresses)
                 {
-                    localIP = ip.ToString();
-                    break;
+                    if (ua.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        localIP = ua.Address.ToString();
+                        break;
+                    }
+                }
+                if (!string.IsNullOrEmpty(localIP)) break;
+            }
+            // 兜底：走原方式
+            if (string.IsNullOrEmpty(localIP))
+            {
+                var host = Dns.GetHostEntry(Dns.GetHostName());
+                foreach (var ip in host.AddressList)
+                {
+                    if (ip.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        localIP = ip.ToString();
+                        break;
+                    }
                 }
             }
         }
@@ -221,16 +254,38 @@ public class UDP_1 : MonoBehaviour
         
         try
         {
-            udpClient = new UdpClient();
+            // 先创建 IPv4 Socket，并允许端口复用（避免 Editor 重启或多组件冲突）
+            udpClient = new UdpClient(AddressFamily.InterNetwork);
             udpClient.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            udpClient.Client.Bind(new IPEndPoint(IPAddress.Parse(listenIP), listenPort));
+            udpClient.ExclusiveAddressUse = false;
+
+            // 优先按配置绑定；失败则回退到 0.0.0.0
+            bool bound = false;
+            if (!bindAllInterfaces && IPAddress.TryParse(listenIP, out var specified))
+            {
+                try
+                {
+                    udpClient.Client.Bind(new IPEndPoint(specified, listenPort));
+                    bound = true;
+                }
+                catch (SocketException se)
+                {
+                    Debug.LogWarning($"按指定IP绑定失败({specified}:{listenPort}): {se.Message}，回退到 0.0.0.0 绑定。");
+                }
+            }
+            if (!bound)
+            {
+                udpClient.Client.Bind(new IPEndPoint(IPAddress.Any, listenPort));
+                bound = true;
+            }
             
             isRunning = true;
             receiveThread = new Thread(ReceiveData);
             receiveThread.IsBackground = true;
             receiveThread.Start();
             
-            Debug.Log($"UDP接收器已启动 - 监听 {listenIP}:{listenPort}");
+            var localEndPoint = (IPEndPoint)udpClient.Client.LocalEndPoint;
+            Debug.Log($"UDP接收器已启动 - 监听 {localEndPoint.Address}:{localEndPoint.Port}");
         }
         catch (Exception e)
         {
@@ -296,7 +351,7 @@ public class UDP_1 : MonoBehaviour
     private void ProcessReceivedData(byte[] buffer, int length)
     {
         // 查找帧头
-        for (int i = 0; i < length - frameLength; i++)
+        for (int i = 0; i <= length - frameLength; i++)
         {
             if (buffer[i] == frameHeader[0] && buffer[i + 1] == frameHeader[1])
             {
