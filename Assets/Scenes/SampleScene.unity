@@ -3897,8 +3897,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 452388d5ba5d079429d185aad581f648, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  listenIP: 192.168.1.25
+  listenIP: 192.168.1.20
   listenPort: 30300
+  bindAllInterfaces: 1
+  autoDetectLocalIP: 1
   serialNumber: 000000
   workMode: 2
   showDebugInfo: 1

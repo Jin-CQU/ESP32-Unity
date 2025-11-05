@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AndroidManifest skeleton for YVR SDK 2.8.0
+     Provides the complete structure (/manifest/application/activity/intent-filter)
+     required by YVR's ManifestPreprocessor to inject VR-specific meta-data and categories.
+     Unity and YVR will merge additional attributes/nodes during the Gradle build.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+          package="com.SCUT_Liz.ESP32_Unity">
+
+    <!-- OpenXR runtime queries required by YVR SDK -->
+    <queries>
+        <!-- OpenXR runtime broker -->
+        <provider android:authorities="org.khronos.openxr.runtime_broker;org.khronos.openxr.system_runtime_broker" />
+        
+        <!-- OpenXR runtime service -->
+        <intent>
+            <action android:name="org.khronos.openxr.OpenXRRuntimeService" />
+        </intent>
+        
+        <!-- OpenXR API layer service -->
+        <intent>
+            <action android:name="org.khronos.openxr.OpenXRApiLayerService" />
+        </intent>
+    </queries>
+
+    <application android:label="@string/app_name"
+                 android:icon="@mipmap/app_icon">
+        
+        <!-- Main Unity Activity - YVR will inject VR categories and meta-data -->
+        <activity android:name="com.unity3d.player.UnityPlayerActivity"
+                  android:label="@string/app_name"
+                  android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale|layoutDirection|density"
+                  android:screenOrientation="landscape"
+                  android:launchMode="singleTask"
+                  android:exported="true">
+            
+            <!-- Intent filter required by YVR ManifestPreprocessor -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <!-- YVR SDK will add VR/3D categories here during preprocessing -->
+            </intent-filter>
+            
+            <!-- YVR SDK will inject meta-data entries here (e.g., for VR mode, orientation) -->
+        </activity>
+        
+    </application>
+    
+</manifest>

@@ -12,7 +12,7 @@ using System.Net.NetworkInformation;
 public class UDP_1 : MonoBehaviour
 {
     [Header("UDP配置")]
-    [SerializeField] private string listenIP = "192.168.1.109";
+    [SerializeField] private string listenIP = "192.168.1.20";
     [SerializeField] private int listenPort = 30300;
     [Tooltip("是否绑定到所有网卡(0.0.0.0)。建议开启，避免网卡变化导致绑定失败。")]
     [SerializeField] private bool bindAllInterfaces = true;

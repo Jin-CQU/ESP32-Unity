@@ -281,26 +281,17 @@
       },
       "url": "https://packages.unity.cn"
     },
-    "com.unity.xr.oculus": {
-      "version": "4.5.1",
-      "depth": 0,
-      "source": "registry",
-      "dependencies": {
-        "com.unity.xr.management": "4.4.0"
-      },
-      "url": "https://packages.unity.cn"
-    },
     "com.yvr.core": {
-      "version": "file:D:/Unity_SDK/com.yvr.core-1.25.1",
+      "version": "file:D:/Unity_SDK_YVR2_2.8.0/com.yvr.core",
       "depth": 0,
       "source": "local",
       "dependencies": {
-        "com.yvr.utilities": "0.15.10",
+        "com.yvr.utilities": "0.15.2",
         "com.unity.xr.management": "3.0.4"
       }
     },
     "com.yvr.platform": {
-      "version": "file:D:/Unity_SDK/com.yvr.platform-0.5.3",
+      "version": "file:D:/Unity_SDK_YVR2_2.8.0/com.yvr.platform",
       "depth": 0,
       "source": "local",
       "dependencies": {
@@ -309,7 +300,7 @@
       }
     },
     "com.yvr.utilities": {
-      "version": "file:D:/Unity_SDK/com.yvr.utilities-0.15.11",
+      "version": "file:D:/Unity_SDK_YVR2_2.8.0/com.yvr.utilities",
       "depth": 0,
       "source": "local",
       "dependencies": {
